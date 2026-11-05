@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>The Jade</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,500;0,600;1,500&family=Poppins:wght@400;500&family=Roboto:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Kiosk demo mode: no prototype chrome, stage fills the screen */
+html,body{height:100%;overflow:hidden;background:#002c3f}
+.chrome,.rail{display:none!important}
+.wrap{padding:0!important;display:block!important;height:100%}
+.main{display:block!important;height:100%}
+.device,.scaler{height:100%}
+.stage{border-radius:0!important;box-shadow:none!important}
+.ann{display:none!important}
+</style>
+<style>
+/* Layout: a fixed 1280x800 "Fire HD 10, landscape" stage scaled to fit, with a slim prototype chrome above and a notes rail beside it. */
+:root{
+  /* prototype chrome (themed) */
+  --bg:#f3f1ee; --fg:#1d2330; --muted:#5d6270; --rail:#ffffff; --line:#d9d6d0; --chip:#e7e3dc;
+  /* The Jade brand tokens, copied from thejadewh.com :root */
+  --jade-navy:#002c3f; --jade-blue:#004c74; --winter-teal:#1b6083; --heaven-blue:#bcd3e2;
+  --cozy-white:#edeae8; --cream-2:#f6f3ee; --sunny-orange:#f4b97d; --sunny-orange-deep:#a86620; --sunny-orange-ink:#754c19;
+  --everglade:#75937b; --everglade-deep:#3f5c47; --ink-muted:#5d6270; --comfy-gray:#9599a5;
+  --display:"Cormorant",Georgia,"Times New Roman",serif;
+  --body:"Poppins","Helvetica Neue",Arial,sans-serif;
+  --data:"Roboto","Helvetica Neue",Arial,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#15181d; --fg:#e9e6e1; --muted:#a3a7b1; --rail:#1e2228; --line:#2f343c; --chip:#2a2f37; color-scheme:dark } }
+:root[data-theme="dark"]{ --bg:#15181d; --fg:#e9e6e1; --muted:#a3a7b1; --rail:#1e2228; --line:#2f343c; --chip:#2a2f37; color-scheme:dark }
+
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.45}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--sunny-orange);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+
+.wrap{min-height:100%;display:grid;grid-template-rows:auto 1fr;padding-block:12px 20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));gap:12px}
+.chrome{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-family:var(--data);font-size:13px}
+.chrome h1{font:500 20px/1.1 var(--display);margin:0 12px 0 0}
+.chrome .jump{display:flex;flex-wrap:wrap;gap:6px}
+.chrome .jump button{padding:5px 10px;border-radius:999px;background:var(--chip);color:var(--fg)}
+.chrome .jump button[aria-current="true"]{background:var(--jade-navy);color:var(--cozy-white)}
+.chrome label{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.chrome .idle{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:1100px){ .main{grid-template-columns:minmax(0,1fr)} }
+.device{min-width:0}
+.scaler{width:100%;position:relative}
+.stage{width:1280px;height:800px;transform-origin:0 0;position:absolute;left:0;top:0;background:var(--jade-navy);color:var(--cozy-white);overflow:hidden;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:var(--body)}
+.stage > section{position:absolute;inset:0;display:none}
+.stage > section[data-on]{display:block}
+
+/* Notes rail */
+.rail{background:var(--rail);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.rail h2{font:600 18px/1.2 var(--display);margin:0 0 4px}
+.rail .eyebrow{font-family:var(--data);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rail ol{margin:10px 0 0;padding-left:18px}
+.rail li{margin:0 0 8px}
+.rail li b{font-weight:500}
+
+/* ---------- Kiosk screens ---------- */
+.k-eyebrow{font-family:var(--data);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--heaven-blue)}
+.k-wordmark{font:500 30px/1 var(--display);letter-spacing:.02em;color:var(--cozy-white)}
+.k-wordmark small{display:block;font:500 11px/1 var(--data);letter-spacing:.2em;text-transform:uppercase;color:var(--heaven-blue);margin-top:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:64px;padding:0 28px;border-radius:4px;font:500 20px/1 var(--body);letter-spacing:.01em;transition:transform .2s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn-orange{background:var(--sunny-orange);color:var(--jade-navy)}
+.btn-ghost{border:2px solid var(--heaven-blue);color:var(--cozy-white)}
+.btn-navy{background:var(--jade-navy);color:var(--cozy-white)}
+.btn-cream{background:var(--cozy-white);color:var(--jade-navy)}
+.price{font-family:var(--data);font-variant-numeric:tabular-nums}
+
+/* Attract */
+#attract{background:#07233a}
+#attract .hero{position:absolute;inset:0;background:url("courtyard.jpg") center/cover no-repeat}
+#attract .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,44,63,.35) 0%,rgba(0,44,63,.15) 35%,rgba(0,44,63,.82) 70%,rgba(0,44,63,.96) 100%)}
+#attract .top{position:absolute;left:56px;top:40px;right:56px;display:flex;justify-content:space-between;align-items:flex-start}
+#attract .top .clock{font-family:var(--data);font-size:18px;color:var(--heaven-blue);text-align:right;font-variant-numeric:tabular-nums}
+#attract .copy{position:absolute;left:56px;right:56px;bottom:150px}
+#attract h2{font:500 72px/1.02 var(--display);margin:0 0 18px;max-width:900px;text-wrap:balance}
+#attract h2 em{font-style:italic}
+#attract .prices{display:flex;gap:40px;margin:0 0 26px;flex-wrap:wrap}
+#attract .prices div{display:flex;flex-direction:column;gap:4px}
+#attract .prices .lbl{font-family:var(--data);font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--heaven-blue)}
+#attract .prices .val{font:500 44px/1 var(--display);color:var(--cozy-white)}
+#attract .prices .val span{font:500 20px/1 var(--data);color:var(--heaven-blue);margin-left:8px}
+#attract .touch{display:inline-flex;align-items:center;gap:14px;font-size:22px;color:var(--cozy-white)}
+#attract .touch .ring{width:54px;height:54px;border-radius:50%;border:2px solid var(--sunny-orange);display:grid;place-items:center;animation:pulse 2.2s infinite}
+#attract .touch .ring::after{content:"";width:16px;height:16px;border-radius:50%;background:var(--sunny-orange)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(244,185,125,.55)}70%{box-shadow:0 0 0 18px rgba(244,185,125,0)}100%{box-shadow:0 0 0 0 rgba(244,185,125,0)}}
+#attract .strip{position:absolute;left:0;right:0;bottom:0;height:92px;background:var(--cozy-white);color:var(--jade-navy);display:flex;align-items:center;gap:28px;padding:0 56px;font-size:19px}
+#attract .strip .dot{width:12px;height:12px;border-radius:50%;background:var(--everglade);flex:none}
+#attract .strip[data-closed] .dot{background:var(--sunny-orange-deep)}
+#attract .strip .phone{margin-left:auto;font-family:var(--data);font-weight:500;letter-spacing:.02em}
+#attract .hit{position:absolute;inset:0;width:100%;height:100%}
+#attract .strip[data-away]{background:var(--sunny-orange);font-weight:500}
+#attract .strip[data-away] .dot{background:var(--jade-navy)}
+#attract .staffhold{position:absolute;left:40px;top:28px;width:220px;height:100px;z-index:2;border-radius:6px}
+#attract .staffhold[data-holding]{background:rgba(244,185,125,.18)}
+
+/* Staff away screen (hold the logo 3 s) */
+#staff{background:var(--jade-navy);color:var(--cozy-white)}
+#staff .in{position:absolute;inset:0;padding:56px 64px;display:flex;flex-direction:column;gap:28px}
+#staff h2{font:500 56px/1 var(--display);margin:0}
+#staff h2 em{font-style:italic}
+#staff .sub{font-size:20px;color:var(--heaven-blue);margin-top:-14px}
+#staff .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+#staff .choice{min-height:250px;border-radius:8px;background:var(--cozy-white);color:var(--jade-navy);text-align:left;padding:28px;display:flex;flex-direction:column;justify-content:space-between}
+#staff .choice:active{transform:scale(.98)}
+#staff .choice .t{font:500 44px/1 var(--display)}
+#staff .choice .r{font:500 22px/1.25 var(--data)}
+#staff .choice .r small{display:block;font-weight:400;font-size:15px;color:var(--ink-muted);margin-top:4px}
+#staff .choice.lunch{background:var(--sunny-orange)}
+#staff .row{display:flex;gap:16px;align-items:center;margin-top:auto}
+#staff .back{min-height:84px;padding:0 40px;border-radius:8px;background:var(--everglade);color:#fff;font:500 26px/1 var(--body)}
+#staff .cancel{min-height:64px;padding:0 24px;border:2px solid var(--heaven-blue);border-radius:6px;color:var(--cozy-white);font-size:18px;margin-left:auto}
+
+/* Shared app shell (home, plan, unit, etc.) */
+.shell{position:absolute;inset:0;display:grid;grid-template-rows:84px 1fr 96px;background:var(--cozy-white);color:var(--jade-navy)}
+.shell .hdr{display:flex;align-items:center;gap:20px;padding:0 44px;border-bottom:1px solid rgba(0,44,63,.14)}
+.shell .hdr .back{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 16px 0 10px;border-radius:4px;font-size:18px;color:var(--jade-navy)}
+.shell .hdr .back:active{background:rgba(0,44,63,.08)}
+.shell .hdr .crumb{font:500 28px/1 var(--display)}
+.shell .hdr .crumb em{font-style:italic}
+.shell .hdr .right{margin-left:auto;display:flex;gap:10px;align-items:center;font-family:var(--data);font-size:14px;color:var(--ink-muted)}
+.shell .hdr .right .live{display:inline-flex;align-items:center;gap:8px}
+.shell .hdr .right .live::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--everglade)}
+.shell .body{padding:28px 44px;overflow:hidden;min-height:0}
+.shell .bar{display:flex;align-items:center;gap:14px;padding:0 44px;background:var(--jade-navy);color:var(--cozy-white)}
+.shell .bar .home{display:inline-flex;flex-direction:column;justify-content:center;min-height:64px;padding-right:18px;border-right:1px solid rgba(237,234,232,.25);margin-right:6px}
+.shell .bar .home .k-wordmark{font-size:22px}
+.shell .bar .home .k-wordmark small{margin-top:3px;font-size:9px}
+.shell .bar .spacer{flex:1}
+.shell .bar .qr{display:flex;align-items:center;gap:12px;font-family:var(--data);font-size:13px;line-height:1.25;color:var(--heaven-blue)}
+.shell .bar .qr .code{width:64px;height:64px;background:#fff;padding:4px;border-radius:3px}
+.shell .bar .qr .code img, .shell .bar .qr .code canvas{width:56px;height:56px;display:block}
+.shell .bar .btn{min-height:60px;font-size:18px;padding:0 22px}
+
+/* Home */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:22px}
+.plan-card{text-align:left;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 0 rgba(0,44,63,.08),0 10px 24px rgba(0,44,63,.08);display:grid;grid-template-rows:200px auto}
+.plan-card .ph{position:relative}
+.plan-card .meta{padding:16px 18px 18px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:end}
+.plan-card .name{font:500 32px/1 var(--display);grid-column:1/-1}
+.plan-card .name em{font-style:italic}
+.plan-card .spec{font-family:var(--data);font-size:14px;color:var(--ink-muted)}
+.plan-card .from{font:500 30px/1 var(--display);text-align:right}
+.plan-card .from small{display:block;font:400 12px/1 var(--data);color:var(--ink-muted);margin-top:4px}
+.plan-card .avail{grid-column:1/-1;margin-top:10px;display:inline-flex;align-items:center;gap:8px;font-family:var(--data);font-size:15px;font-weight:500;color:var(--everglade-deep)}
+.plan-card .avail::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--everglade)}
+.plan-card .avail[data-last]{color:var(--sunny-orange-deep)}
+.plan-card .avail[data-last]::before{background:var(--sunny-orange-deep)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.tile{text-align:left;min-height:118px;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;background:var(--jade-blue);color:var(--cozy-white)}
+.tile .t{font:500 26px/1.05 var(--display)}
+.tile .s{font-family:var(--data);font-size:13px;color:var(--heaven-blue)}
+.tile.alt{background:var(--winter-teal)}
+.tile.green{background:var(--everglade-deep)}
+.tile.cream{background:#fff;color:var(--jade-navy);border:1px solid rgba(0,44,63,.14)}
+.tile.cream .s{color:var(--ink-muted)}
+
+/* Photo placeholders (prototype only) */
+.ph{background:linear-gradient(135deg,#1b6083 0%,#004c74 60%,#002c3f 100%);position:relative;overflow:hidden;min-width:0}
+.ph::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,rgba(188,211,226,.35),transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(244,185,125,.25),transparent 50%)}
+.ph .cap{position:absolute;left:12px;bottom:10px;right:12px;font-family:var(--data);font-size:11px;line-height:1.3;color:rgba(237,234,232,.85);background:rgba(0,44,63,.55);padding:5px 8px;border-radius:3px;word-break:break-all}
+.ph.real{background:url("courtyard.jpg") center/cover}
+.ph.real::before{display:none}
+
+/* Plan */
+.plan{display:grid;grid-template-columns:560px 1fr;gap:32px;height:100%}
+.plan .media{display:grid;grid-template-rows:330px 110px;gap:12px}
+.plan .media .ph{border-radius:6px}
+.plan .media .strip3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.plan .info h3{font:500 44px/1 var(--display);margin:0 0 8px}
+.plan .info h3 em{font-style:italic}
+.plan .info .spec{font-family:var(--data);font-size:15px;color:var(--ink-muted);margin-bottom:12px}
+.plan .info p{margin:0 0 16px;font-size:16px;max-width:58ch}
+.units{display:flex;flex-direction:column;gap:8px;max-height:312px;overflow:auto;padding-right:4px}
+.unit{display:grid;grid-template-columns:120px 1fr auto auto;align-items:center;gap:14px;text-align:left;background:#fff;border:1px solid rgba(0,44,63,.14);border-radius:5px;padding:12px 16px;min-height:66px}
+.unit:active{background:#f0f4f7}
+.unit .num{font-family:var(--data);font-size:18px;font-weight:500}
+.unit .num small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sunny-orange-ink);font-weight:500;margin-top:2px}
+.unit .d{font-family:var(--data);font-size:14px;color:var(--ink-muted)}
+.unit .p{font-family:var(--data);font-size:22px;font-weight:500}
+.unit .go{font-family:var(--data);font-size:13px;color:var(--jade-blue)}
+.unit[data-soon] .d b{color:var(--sunny-orange-deep)}
+
+/* Unit */
+.unitpage{display:grid;grid-template-columns:1fr 440px;gap:32px;height:100%}
+.unitpage .media{display:grid;grid-template-rows:1fr 120px;gap:12px}
+.unitpage .media .ph{border-radius:6px}
+.unitpage .media .strip3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.unitpage .facts{background:#fff;border:1px solid rgba(0,44,63,.14);border-radius:6px;padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.unitpage .facts .num{font:500 46px/1 var(--display)}
+.unitpage .facts .num small{display:block;font:500 12px/1 var(--data);letter-spacing:.12em;text-transform:uppercase;color:var(--sunny-orange-ink);margin-top:8px}
+.unitpage .facts .big{font:500 40px/1 var(--display)}
+.unitpage .facts .big small{font:400 14px/1 var(--data);color:var(--ink-muted);margin-left:6px}
+.unitpage dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-family:var(--data);font-size:15px}
+.unitpage dt{color:var(--ink-muted)}
+.unitpage dd{margin:0}
+.unitpage .facts .cta{display:grid;gap:10px;margin-top:auto}
+
+/* Text me */
+.textme{display:grid;grid-template-columns:1fr 1fr;gap:40px;height:100%}
+.textme h3{font:500 44px/1.05 var(--display);margin:0 0 10px}
+.textme h3 em{font-style:italic}
+.textme .what{background:#fff;border:1px solid rgba(0,44,63,.14);border-radius:6px;padding:16px 18px;margin:0 0 18px;font-size:15px}
+.textme .what b{display:block;font:500 24px/1.1 var(--display);margin-bottom:4px}
+.field{display:grid;gap:6px;margin-bottom:14px}
+.field label{font-family:var(--data);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)}
+.field input{font:400 24px/1 var(--data);padding:14px 16px;border:1.5px solid rgba(0,44,63,.3);border-radius:4px;background:#fff;color:var(--jade-navy);width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid rgba(0,44,63,.3);font-family:var(--data);font-size:15px;background:#fff;color:var(--jade-navy)}
+.chip[aria-pressed="true"]{background:var(--jade-navy);color:var(--cozy-white);border-color:var(--jade-navy)}
+.consent{font-family:var(--data);font-size:12px;line-height:1.4;color:var(--ink-muted);margin:4px 0 14px;max-width:62ch}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:start}
+.keypad button{min-height:78px;background:#fff;border:1.5px solid rgba(0,44,63,.2);border-radius:6px;font:400 30px/1 var(--data);color:var(--jade-navy)}
+.keypad button:active{background:var(--heaven-blue)}
+.keypad button.wide{grid-column:span 2;font-size:18px}
+.keypad .display{grid-column:1/-1;font:400 38px/1 var(--data);letter-spacing:.06em;padding:16px 0 10px;border-bottom:2px solid var(--jade-navy);min-height:68px;font-variant-numeric:tabular-nums}
+.keypad .display span{color:var(--comfy-gray)}
+
+/* Confirm */
+.confirm{height:100%;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.confirm .check{width:84px;height:84px;border-radius:50%;background:var(--everglade);display:grid;place-items:center;margin-bottom:22px}
+.confirm .check::after{content:"";width:34px;height:18px;border-left:5px solid #fff;border-bottom:5px solid #fff;transform:rotate(-45deg) translate(2px,-3px)}
+.confirm h3{font:500 52px/1.02 var(--display);margin:0 0 12px}
+.confirm h3 em{font-style:italic}
+.confirm p{font-size:18px;max-width:46ch;margin:0 0 22px}
+.confirm .next{background:#fff;border:1px solid rgba(0,44,63,.14);border-radius:6px;padding:28px}
+.confirm .next h4{font:500 30px/1.1 var(--display);margin:0 0 6px}
+.confirm .next p{font-size:15px;color:var(--ink-muted);margin-bottom:18px}
+.confirm .next .cta{display:grid;gap:10px}
+
+/* Book (framed external scheduler) */
+#book .frame{position:absolute;inset:0;background:#fff;color:#222;display:grid;grid-template-rows:72px 1fr}
+#book .kbar{background:var(--jade-navy);color:var(--cozy-white);display:flex;align-items:center;gap:16px;padding:0 44px}
+#book .kbar .t{font:500 24px/1 var(--display)}
+#book .kbar .btn{min-height:48px;font-size:16px;padding:0 18px;margin-left:auto}
+#book .fake{padding:40px 60px;font-family:var(--data);color:#333}
+#book .fake h4{margin:0 0 6px;font:500 28px/1.1 var(--data)}
+#book .fake .steps{display:flex;gap:30px;margin:14px 0 24px;color:#777;font-size:14px}
+#book .fake .steps b{color:#111}
+#book .fake .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:760px}
+#book .fake .f{border:1px solid #cfcfcf;border-radius:4px;padding:16px;color:#888;font-size:16px}
+#book .fake .go{margin-top:20px;display:inline-block;background:#2f6fd1;color:#fff;padding:14px 22px;border-radius:4px;font-size:16px}
+#book .fake .note{margin-top:30px;font-size:13px;color:#777;max-width:70ch}
+
+/* Explore / See it / Included / Reserve */
+.explore{display:grid;grid-template-columns:1fr 300px;gap:24px;height:100%}
+.explore .map{border-radius:6px;position:relative;background:#e3e9eb url("courtyard.jpg") center/cover;filter:none}
+.explore .map .cover{position:absolute;inset:0;background:rgba(227,233,235,.86);border-radius:6px}
+.explore .map .cap{z-index:1}
+.explore .key{display:flex;flex-direction:column;gap:8px;overflow:auto}
+.explore .key button{text-align:left;display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:center;background:#fff;border:1px solid rgba(0,44,63,.14);border-radius:5px;padding:10px 12px;min-height:50px;font-size:15px}
+.explore .key button i{font:500 13px/1 var(--data);font-style:normal;width:32px;height:32px;border-radius:50%;background:var(--jade-navy);color:var(--cozy-white);display:grid;place-items:center}
+.explore .key button[aria-pressed="true"]{border-color:var(--jade-navy);background:#eef3f6}
+.pin{position:absolute;width:38px;height:38px;border-radius:50%;background:var(--sunny-orange);color:var(--jade-navy);display:grid;place-items:center;font:500 14px/1 var(--data);box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:1}
+.gallery{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;gap:12px;height:100%;align-content:start}
+.gallery .ph{border-radius:6px}
+.gallery .ph.wide{grid-column:span 2}
+.gallery .tour{border-radius:6px;background:var(--jade-navy);color:var(--cozy-white);text-align:left;padding:16px;display:flex;flex-direction:column;justify-content:space-between}
+.gallery .tour .t{font:500 24px/1.05 var(--display)}
+.gallery .tour .s{font-family:var(--data);font-size:12px;color:var(--heaven-blue)}
+.included{display:grid;grid-template-columns:1fr 360px;gap:32px;height:100%}
+.included table{width:100%;border-collapse:collapse;font-family:var(--data);font-size:16px}
+.included th{text-align:left;font-weight:500;color:var(--ink-muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:0 12px 10px;border-bottom:1px solid rgba(0,44,63,.2)}
+.included td{padding:11px 12px;border-bottom:1px solid rgba(0,44,63,.1)}
+.included td.yes{color:var(--everglade-deep);font-weight:500}
+.included td.no{color:var(--ink-muted)}
+.included td.zero{font:500 28px/1 var(--display)}
+.included .aside{background:var(--jade-navy);color:var(--cozy-white);border-radius:6px;padding:26px;display:flex;flex-direction:column;gap:14px}
+.included .aside h3{font:500 36px/1.05 var(--display);margin:0}
+.included .aside h3 em{font-style:italic}
+.included .aside p{margin:0;font-size:15px;color:var(--heaven-blue)}
+.included .aside ul{margin:0;padding-left:18px;font-size:15px}
+.reserve{display:grid;grid-template-columns:1fr 1fr;gap:32px;height:100%}
+.reserve .ph{border-radius:6px}
+.reserve h3{font:500 48px/1.02 var(--display);margin:0 0 10px}
+.reserve h3 em{font-style:italic}
+.reserve p{font-size:17px;max-width:48ch;margin:0 0 14px}
+.reserve ul{margin:0 0 20px;padding-left:20px;font-size:17px}
+.reserve ul li{margin-bottom:6px}
+.reserve .ctas{display:flex;gap:12px;flex-wrap:wrap}
+
+/* Annotation callouts (prototype only) */
+.ann{position:absolute;z-index:5;width:26px;height:26px;border-radius:50%;background:#d9342b;color:#fff;font:500 13px/1 var(--data);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.35);pointer-events:none;display:none}
+.stage[data-ann] .ann{display:grid}
+</style>
+
+</head><body>
+<div class="wrap">
+  <div class="chrome">
+    <h1>Jade Lobby Kiosk</h1>
+    <div class="jump" id="jump"></div>
+    <label><input type="checkbox" id="closed"> Office closed (after-hours copy)</label>
+    <label><input type="checkbox" id="annot" checked> Show callouts</label>
+    <span class="idle">Idle reset in <span id="idle">120</span>s</span>
+  </div>
+
+  <div class="main">
+    <div class="device">
+      <div class="scaler" id="scaler">
+        <div class="stage" id="stage">
+
+<!-- ============ 0. ATTRACT ============ -->
+<section id="attract" data-on>
+  <div class="hero"></div>
+  <div class="veil"></div>
+  <div class="top">
+    <div class="k-wordmark">The Jade<small>Winter Haven</small></div>
+    <div class="clock" id="clock">Thursday · 1:26 PM</div>
+  </div>
+  <div class="copy">
+    <div class="k-eyebrow" style="margin-bottom:14px">Looking for apartment info?</div>
+    <h2>Start <em>here.</em></h2>
+    <div class="prices">
+      <div><span class="lbl">One bedrooms</span><span class="val price">from $1,295<span>/mo</span></span></div>
+      <div><span class="lbl">Two bedrooms</span><span class="val price">from $1,750<span>/mo</span></span></div>
+      <div><span class="lbl">Amenity fee</span><span class="val price">$0<span>every amenity included</span></span></div>
+    </div>
+    <div class="touch"><span class="ring"></span> Touch anywhere to see what's open</div>
+  </div>
+  <div class="strip" id="strip">
+    <span class="dot"></span>
+    <span id="stripText">Leasing office: through the door on your right · open until 6 PM</span>
+    <span class="phone">(863) 789-JADE</span>
+  </div>
+  <button class="hit" data-go="home" aria-label="Touch to start"></button>
+  <button class="staffhold" id="staffhold" aria-label="Staff: hold to set away status"></button>
+  <span class="ann" style="left:40px;top:395px">1</span>
+  <span class="ann" style="left:420px;top:580px">2</span>
+  <span class="ann" style="left:20px;top:720px">3</span>
+</section>
+
+<!-- ============ S. STAFF AWAY (hold logo 3 s) ============ -->
+<section id="staff">
+  <div class="in">
+    <h2>Hi Jamie. <em>Where are you headed?</em></h2>
+    <div class="sub">Tap one. The lobby screen does the rest and clears itself when the time's up.</div>
+    <div class="choices">
+      <button class="choice lunch" data-away="lunch"><span class="t">Lunch</span><span class="r">Back at <span data-ret="60">2:32 PM</span><small>one hour from now</small></span></button>
+      <button class="choice" data-away="tour"><span class="t">Tour</span><span class="r">Back at <span data-ret="30">2:02 PM</span><small>30 minutes from now</small></span></button>
+      <button class="choice" data-away="out"><span class="t">Be right back</span><span class="r">Back at <span data-ret="15">1:47 PM</span><small>15 minutes from now</small></span></button>
+    </div>
+    <div class="row">
+      <button class="back" data-away="clear">I'm back</button>
+      <button class="cancel" data-reset>Cancel</button>
+    </div>
+  </div>
+  <span class="ann" style="left:30px;top:150px">11</span>
+</section>
+
+<!-- ============ 1. HOME ============ -->
+<section id="home">
+  <div class="shell">
+    <div class="hdr">
+      <div class="crumb">What's <em>open today</em></div>
+      <div class="right"><span class="live">Live prices · updated 12:57 PM</span></div>
+    </div>
+    <div class="body">
+      <div class="plans" id="plans"></div>
+      <div class="tiles">
+        <button class="tile" data-go="explore"><span class="t">Explore the property</span><span class="s">Tap an amenity, see where it is</span></button>
+        <button class="tile alt" data-go="seeit"><span class="t">See it</span><span class="s">Photos and 3D walk-throughs</span></button>
+        <button class="tile green" data-go="included"><span class="t">What's included</span><span class="s">One rent. $0 amenity fee.</span></button>
+        <button class="tile cream" data-go="reserve"><span class="t">The Jade Reserve</span><span class="s">Elevator, penthouse floor, new courtyard</span></button>
+      </div>
+    </div>
+    <div class="bar" data-bar></div>
+  </div>
+  <span class="ann" style="left:40px;top:100px">4</span>
+  <span class="ann" style="left:690px;top:700px">5</span>
+</section>
+
+<!-- ============ 2. PLAN ============ -->
+<section id="plan">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-go="home">‹ Back</button>
+      <div class="crumb" id="planCrumb">The <em>Cozy</em></div>
+      <div class="right"><span class="live">Live prices</span></div>
+    </div>
+    <div class="body"><div class="plan" id="planBody"></div></div>
+    <div class="bar" data-bar></div>
+  </div>
+  <span class="ann" style="left:770px;top:420px">6</span>
+</section>
+
+<!-- ============ 3. UNIT ============ -->
+<section id="unit">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-go="plan">‹ Back</button>
+      <div class="crumb" id="unitCrumb">1170-103</div>
+      <div class="right"><span class="live">Available now</span></div>
+    </div>
+    <div class="body"><div class="unitpage" id="unitBody"></div></div>
+    <div class="bar" data-bar></div>
+  </div>
+</section>
+
+<!-- ============ 4. TEXT ME ============ -->
+<section id="textme">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-back>‹ Back</button>
+      <div class="crumb">Take it <em>with you</em></div>
+    </div>
+    <div class="body">
+      <div class="textme">
+        <div>
+          <h3>We'll text you <em>this.</em></h3>
+          <div class="what" id="textWhat"><b>The Cozy · from $1,345/mo</b>Floor plan, the homes open today, and a link to pick a tour time.</div>
+          <div class="field"><label for="fname">First name</label><input id="fname" placeholder="Taylor" autocomplete="off"></div>
+          <div class="field"><label>Moving in</label>
+            <div class="chips" id="moveChips">
+              <button class="chip" aria-pressed="true">ASAP</button><button class="chip">Dec</button><button class="chip">Jan</button><button class="chip">Feb</button><button class="chip">Later</button>
+            </div>
+          </div>
+          <p class="consent">By tapping Send, you agree to get one text with this info and follow-up from The Jade's leasing team at the number you enter. Msg &amp; data rates may apply. Reply STOP to opt out. Your number is only used for this.</p>
+          <button class="btn btn-orange" id="sendBtn" style="min-width:260px">Send it to my phone</button>
+        </div>
+        <div class="keypad" id="keypad">
+          <div class="display" id="phoneDisplay"><span>(___) ___-____</span></div>
+          <button>1</button><button>2</button><button>3</button>
+          <button>4</button><button>5</button><button>6</button>
+          <button>7</button><button>8</button><button>9</button>
+          <button class="wide" data-clear>Clear</button><button>0</button>
+        </div>
+      </div>
+    </div>
+    <div class="bar" data-bar data-minimal></div>
+  </div>
+  <span class="ann" style="left:320px;top:505px">7</span>
+  <span class="ann" style="left:640px;top:100px">8</span>
+</section>
+
+<!-- ============ 5. CONFIRM ============ -->
+<section id="confirm">
+  <div class="shell">
+    <div class="hdr">
+      <div class="crumb">Sent.</div>
+    </div>
+    <div class="body">
+      <div class="confirm">
+        <div>
+          <div class="check"></div>
+          <h3>On its way to <em id="sentTo">(863) 555-0142</em></h3>
+          <p id="sentWhat">The Cozy floor plan, the 5 homes open today, and a link to pick a tour time. It should land in a few seconds.</p>
+          <button class="btn btn-ghost" style="border-color:var(--jade-navy);color:var(--jade-navy)" data-reset>Done · start over</button>
+        </div>
+        <div class="next">
+          <h4 id="nextH">Pick a tour time now?</h4>
+          <p id="nextP">Takes about a minute. We'll meet you right here in the lobby.</p>
+          <div class="cta">
+            <button class="btn btn-navy" data-go="book">Pick a time</button>
+            <button class="btn btn-cream" style="border:1.5px solid rgba(0,44,63,.3)" data-reset>No thanks</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bar" data-bar data-minimal></div>
+  </div>
+  <span class="ann" style="left:700px;top:230px">9</span>
+</section>
+
+<!-- ============ 6. BOOK (external scheduler, framed) ============ -->
+<section id="book">
+  <div class="frame">
+    <div class="kbar">
+      <span class="t">Pick a tour time</span>
+      <span style="font-family:var(--data);font-size:13px;color:var(--heaven-blue)">villagerealty.appfolio.com · The Jade</span>
+      <button class="btn btn-orange" data-reset>Done · start over</button>
+    </div>
+    <div class="fake">
+      <h4>Schedule a Showing</h4>
+      <div class="steps"><span><b>1</b> Tell us about you</span><span>2 Select a time to view this property</span></div>
+      <div class="grid">
+        <div class="f">First Name*</div><div class="f">Last Name*</div>
+        <div class="f">Email*</div><div class="f">Phone*</div>
+      </div>
+      <div class="go">View Available Times</div>
+      <p class="note">This is AppFolio's own showing page, shown inside the kiosk with the navy bar on top so the visitor can always get back. Booking here auto-creates the guest card in AppFolio. Name and phone from the previous screen pre-fill via the URL if AppFolio supports it; otherwise the visitor retypes them.</p>
+    </div>
+  </div>
+  <span class="ann" style="left:1080px;top:14px">10</span>
+</section>
+
+<!-- ============ 7. EXPLORE ============ -->
+<section id="explore">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-go="home">‹ Back</button>
+      <div class="crumb">The whole property <em>at a glance</em></div>
+      <div class="right"><span>Tap an amenity</span></div>
+    </div>
+    <div class="body">
+      <div class="explore">
+        <div class="map ph" id="map">
+          <div class="cover"></div>
+          <span class="pin" style="left:46%;top:38%">3</span>
+          <span class="pin" style="left:38%;top:62%">5</span>
+          <span class="pin" style="left:22%;top:44%">L</span>
+          <span class="pin" style="left:70%;top:30%">R</span>
+          <div class="cap">Reuse the site's interactive map: /maps/studio-leasing.5fb5e36b6a1f.1200.webp with its amenity hotspots and the live "open homes" stacks from /availability. Pinch-zoom on. "You are here" pin at the lobby.</div>
+        </div>
+        <div class="key" id="mapKey"></div>
+      </div>
+    </div>
+    <div class="bar" data-bar></div>
+  </div>
+</section>
+
+<!-- ============ 8. SEE IT ============ -->
+<section id="seeit">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-go="home">‹ Back</button>
+      <div class="crumb">Look <em>around</em></div>
+    </div>
+    <div class="body">
+      <div class="gallery" id="gallery"></div>
+    </div>
+    <div class="bar" data-bar></div>
+  </div>
+</section>
+
+<!-- ============ 9. INCLUDED ============ -->
+<section id="included">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-go="home">‹ Back</button>
+      <div class="crumb">One rent covers <em>all of it</em></div>
+    </div>
+    <div class="body">
+      <div class="included">
+        <table>
+          <thead><tr><th>Amenity</th><th>Comparable properties</th><th>The Jade</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly amenity fee</td><td class="no">$50–150/mo</td><td class="zero">$0</td></tr>
+            <tr><td>Wi-Fi, up to 800 Mbps</td><td class="no">Usually an add-on</td><td class="yes">Included</td></tr>
+            <tr><td>24/7 gym and coworking</td><td class="no">Usually included</td><td class="yes">Included</td></tr>
+            <tr><td>Pool and hot tub</td><td class="no">Usually included</td><td class="yes">Included</td></tr>
+            <tr><td>Pickleball, shuffleboard, putting green</td><td class="no">Not usually</td><td class="yes">Included</td></tr>
+            <tr><td>Two outdoor theaters</td><td class="no">Not usually</td><td class="yes">Included</td></tr>
+            <tr><td>Two fenced pet parks + grooming station</td><td class="no">Not usually</td><td class="yes">Included</td></tr>
+            <tr><td>One parking space, trash, pest</td><td class="no">Often billed</td><td class="yes">Included</td></tr>
+          </tbody>
+        </table>
+        <div class="aside">
+          <h3>Billed <em>separately</em></h3>
+          <p>So there are no surprises on the first bill.</p>
+          <ul>
+            <li>Electric, through TECO</li>
+            <li>Water and sewer, through the resident portal</li>
+            <li>Optional: storage, covered parking</li>
+          </ul>
+          <p>Applying costs $60 per applicant. Deposits start at $250 and depend on credit.</p>
+          <button class="btn btn-orange" data-go="textme" data-ctx="included" style="margin-top:auto">Text me the breakdown</button>
+        </div>
+      </div>
+    </div>
+    <div class="bar" data-bar></div>
+  </div>
+</section>
+
+<!-- ============ 10. RESERVE ============ -->
+<section id="reserve">
+  <div class="shell">
+    <div class="hdr">
+      <button class="back" data-go="home">‹ Back</button>
+      <div class="crumb">The Jade <em>Reserve</em></div>
+    </div>
+    <div class="body">
+      <div class="reserve">
+        <div class="ph"><div class="cap">photo: /photos/aerial-front.jpg (the 1170 building and its courtyard)</div></div>
+        <div>
+          <h3>The newest corner <em>of The Jade.</em></h3>
+          <p>The 1170 building, with its own courtyard, an elevator, upgraded finishes in every home and energy-efficient systems. Volleyball, shuffleboard and a second outdoor theater, open to every resident.</p>
+          <ul><li>Elevator access</li><li>Penthouse floor</li><li>Washer and dryer in every home</li><li>Energy-efficient systems</li></ul>
+          <div class="ctas">
+            <button class="btn btn-navy" data-go="home">See Reserve homes open now</button>
+            <button class="btn btn-ghost" style="border-color:var(--jade-navy);color:var(--jade-navy)" data-go="textme" data-ctx="reserve">Text me about the Reserve</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bar" data-bar></div>
+  </div>
+</section>
+
+        </div><!-- /stage -->
+      </div>
+    </div>
+
+    <aside class="rail" id="rail">
+      <div class="eyebrow">Notes for David</div>
+      <h2 id="railTitle">Attract screen</h2>
+      <ol id="railNotes"></ol>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ---------- Data (prototype). In the build, all of this comes from the same availability hook the website uses. ---------- */
+const PLANS = {
+  cozy:  {name:"The Cozy",  em:"Cozy",  spec:"One bed · One bath · 504 SF", from:1345, photo:"/photos/cozy-living-room.jpg", render:"/photos/plan-renders-2026-10-25/1b-cozy-plan.webp",
+          blurb:"A one bedroom with a full kitchen and the bedroom tucked at the back of the home, quiet enough for whatever hours you keep.",
+          units:[["1170-103",true,"504 SF · W/D in home","now",1345],["1170-118",true,"504 SF · W/D in home","now",1470],["1170-216",true,"504 SF · W/D in home","now",1470],["1170-205",true,"504 SF · W/D in home","now",1670],["1150-245",false,"504 SF · W/D in home","now",1700]]},
+  sunny: {name:"The Sunny", em:"Sunny", spec:"One bed · One bath · 504 SF", from:1295, photo:"/photos/sunny-living-room.jpg", render:"/photos/plan-renders-2026-10-25/1b-sunny-plan.webp",
+          blurb:"The same size, finishes and fixtures as the Cozy, with the bedroom at the front and an extra window, so it stays bright all day.",
+          units:[["1150-156",false,"504 SF · W/D in home","Nov 10",1295],["1170-217",true,"504 SF · W/D in home","now",1470],["1170-119",true,"504 SF · W/D in home","now",1470],["1170-204",true,"504 SF · W/D in home","now",1670]]},
+  comfy: {name:"The Comfy", em:"Comfy", spec:"Two bed · Two bath · 671 SF", from:1750, photo:"/photos/comfy-living-room.jpg", render:"/photos/plan-renders-2026-10-25/2b-cozy-plan.webp",
+          blurb:"A two bedroom, two bath with an en-suite primary, sized for sharing or for spreading out.",
+          units:[["1170-226",true,"671 SF · W/D in home","now",1750]]}
+};
+const MAPKEY = [["L","Leasing office · you are here"],["3","Resort pool"],["4","Hot tub"],["5","Pickleball court"],["2","24/7 gym"],["1","Clubhouse & coworking"],["11","Resident lounge"],["9","Grill & lounge deck"],["10","Firepit lounge"],["7","Pet parks"],["R","The Jade Reserve"]];
+const GALLERY = [["wide","/photos/pool.jpg · The resort pool at midday"],["","/photos/jacuzzi.jpg · The hot tub"],["tour","Walk the homes in 3D","Matterport v8nY34zB8jK, opened full-screen with the navy Done bar"],["","/photos/cozy-living-room.jpg"],["","/photos/comfy-kitchen.jpg"],["wide","/photos/outdoor-theater.jpg · Outdoor theater"],["","/photos/coworking-booths.jpg"],["","/photos/fitness-room.jpg"],["","/photos/dog-park.jpg"],["tour","Walk the courtyards in 3D","Second Matterport tour"]];
+
+const NOTES = {
+  attract:["Attract screen", [
+    "<b>Answers the walk-in's question before they touch anything.</b> Prices are the site's live from-prices (lowest open unit per plan). Headline swaps on a 20s loop: Start here / No amenity fees / 15 minutes to downtown.",
+    "<b>Orients them.</b> The strip says where the office is and when it closes. After hours it changes to: We're closed right now. Book a tour and we'll meet you in the lobby. Toggle it above.",
+    "<b>Photo:</b> /photos/courtyard-resort.jpg (shown) or the home-page hero video poster. Logo: /logos/jade-logo-cream.svg replaces the type wordmark.",
+    "Any tap goes to Home. No EN/ES toggle, no Call button."]],
+  home:["Home", [
+    "Three plan cards, same data as /floor-plans: from-price, count open now. The 1-left state turns orange so scarcity reads at a glance.",
+    "Four explore tiles. Everything else on the website (pets, neighborhood, FAQ, reviews) lives behind the QR, not here.",
+    "<b>Persistent bar on every screen:</b> wordmark = start over, Text me this, Book a tour, and a real QR to the matching thejadewh.com page for people who won't type a number into a lobby tablet.",
+    "GA4 event on every tap (plan_open, tile_open, textme_start, textme_sent, tour_click)."]],
+  plan:["Plan page", [
+    "Left: 3D plan render + interior photos from the site. Right: live unit list for this plan. Each row is a target (66px min).",
+    "A unit opening soon shows its date in orange. Reserve units carry the RESERVE tag.",
+    "Primary CTA is <b>Text me this plan</b>, not Apply. The 20-minute application happens on their phone from the text."]],
+  unit:["Unit page", [
+    "Same photo set as the plan plus the unit's own facts. Two CTAs: text me this one, tour this one (goes to the scheduler with the unit's listable_uid).",
+    "Price and date come straight from AppFolio's listing feed via the site's hook; nothing is typed in by staff."]],
+  textme:["Text me", [
+    "The outcome the kiosk is optimized for. First name, phone on a big keypad, move-in month chips. No email, no last name.",
+    "Consent line is TCPA-style and the number is used once plus leasing follow-up. SMS send via Twilio (or whatever the site already has); the message carries the plan link, open homes, and the /book link.",
+    "<b>Lead lands in AppFolio:</b> post to the property's lead-ingest email or the listing contact form so it becomes a guest card. Fallback: email leasing@thejadewh.com.",
+    "Form wipes on idle reset or Done."]],
+  confirm:["Confirmation", [
+    "Confirms where it went (masked number) and what was sent. Offers the tour scheduler once; No thanks resets to attract.",
+    "This is the only screen that mentions the AppFolio scheduler, so the kiosk never strands a visitor there without a reason."]],
+  book:["Scheduler", [
+    "AppFolio's /listings/showings/new page in a kiosk frame. The navy bar with <b>Done · start over</b> is always visible so nobody is stuck. Idle reset still applies.",
+    "Booking auto-creates the guest card. Pass name and phone as URL params if the form accepts them."]],
+  explore:["Explore the property", [
+    "The site's existing interactive map component, dropped in as-is, with a You-are-here pin on the lobby and the open-homes stacks lit.",
+    "Tapping a key item centers the map on it. Pinch-zoom allowed; everything else on the tablet is locked by Fully."]],
+  seeit:["See it", [
+    "Gallery pulls the same photo set as /gallery. Two tiles open the Matterport tours full-screen inside the navy Done bar.",
+    "Matterport is whitelisted in Fully (my.matterport.com)."]],
+  included:["What's included", [
+    "The no-amenity-fee comparison from the home page, as a readable table. This is the pitch that moves Jade from mid-pack to near the top of the comp set.",
+    "Fees and deposit figures come from the site's what-youll-pay data, not hard-coded."]],
+  staff:["Jamie: away", [
+    "<b>How Jamie sets it:</b> on her way out, she holds the Jade logo on the kiosk for 3 seconds, then taps Lunch, Tour or Be right back. No phone, no app, no login, no clock to set.",
+    "The return time is calculated for her (now + 60 / 30 / 15 min) and shown on the button before she taps, so she sees what visitors will see.",
+    "The attract strip turns orange: <i>Jamie is at lunch · back at 2:32 PM · have a seat, or text (863) 789-JADE</i>. It clears itself at that time, or when she holds the logo and taps I'm back.",
+    "Store the status server-side (one row: type, until) so a kiosk reload or reboot keeps it. Optional second door: a bookmark on her phone to /kiosk/staff with the same three buttons, protected by a long random token in the URL (no password to remember).",
+    "Name and durations are config, so a different manager is a one-line change. Try it: tap Lunch, then go to the Attract screen."]],
+  reserve:["The Jade Reserve", [
+    "Short version of /reserve. The Reserve CTA goes back to Home filtered to 1170 units (not built in this prototype)."]]
+};
+
+/* ---------- State ---------- */
+let current="attract", ctx={plan:"cozy", unit:null, what:""}, backTo="home", phone="";
+const stage=document.getElementById("stage");
+const sections=[...stage.querySelectorAll(":scope > section")];
+const order=["attract","staff","home","plan","unit","textme","confirm","book","explore","seeit","included","reserve"];
+
+function money(n){return "$"+n.toLocaleString("en-US")}
+function placeholder(src,extra){return `<div class="ph ${extra||""}"><div class="cap">photo: ${src}</div></div>`}
+
+function renderBars(){
+  const qrUrl="https://thejadewh.com/availability";
+  stage.querySelectorAll("[data-bar]").forEach(bar=>{
+    const minimal=bar.hasAttribute("data-minimal");
+    bar.innerHTML=`<button class="home" data-reset aria-label="Start over"><span class="k-wordmark">The Jade<small>Start over</small></span></button>
+      <span class="spacer"></span>
+      ${minimal?"":`<div class="qr"><div class="code" data-qr></div><span>Scan to take<br>this with you</span></div>
+      <button class="btn btn-ghost" data-go="book">Book a tour</button>
+      <button class="btn btn-orange" data-go="textme">Text me this</button>`}`;
+    const q=bar.querySelector("[data-qr]"); if(q&&window.QRCode){ new QRCode(q,{text:qrUrl,width:56,height:56,correctLevel:QRCode.CorrectLevel.M}); }
+  });
+}
+
+function renderHome(){
+  const el=document.getElementById("plans"); el.innerHTML="";
+  for(const [k,p] of Object.entries(PLANS)){
+    const open=p.units.filter(u=>u[3]==="now").length, soon=p.units.length-open;
+    const b=document.createElement("button"); b.className="plan-card"; b.dataset.go="plan"; b.dataset.plan=k;
+    b.innerHTML=`${placeholder(p.photo)}<div class="meta">
+      <div class="name">The <em>${p.em}</em></div>
+      <div class="spec">${p.spec}</div>
+      <div class="from price">${money(p.from)}<small>starting, per month</small></div>
+      <div class="avail" ${open===1?"data-last":""}>${open===1?"1 home left":open+" homes open now"}${soon?" · "+soon+" opening soon":""}</div></div>`;
+    el.appendChild(b);
+  }
+}
+function renderPlan(){
+  const p=PLANS[ctx.plan];
+  document.getElementById("planCrumb").innerHTML=`The <em>${p.em}</em>`;
+  const units=p.units.map((u,i)=>`<button class="unit" data-go="unit" data-unit="${i}" ${u[3]!=="now"?"data-soon":""}>
+      <span class="num">${u[0]}${u[1]?"<small>Reserve</small>":""}</span>
+      <span class="d">${u[2]} · <b>available ${u[3]}</b></span>
+      <span class="p price">${money(u[4])}/mo</span><span class="go">Details ›</span></button>`).join("");
+  document.getElementById("planBody").innerHTML=`
+    <div class="media">${placeholder(p.render+" (3D plan render)")}<div class="strip3">${placeholder(p.photo)}${placeholder("/photos/interior-kitchen.jpg")}${placeholder("/photos/interior-bath.jpg")}</div></div>
+    <div class="info">
+      <h3>The <em>${p.em}</em></h3>
+      <div class="spec">${p.spec} · from <span class="price">${money(p.from)}/mo</span> · $0 amenity fee</div>
+      <p>${p.blurb}</p>
+      <div class="k-eyebrow" style="color:var(--ink-muted);margin-bottom:8px">Open ${p.em==="Comfy"?"now":"today"} · tap one</div>
+      <div class="units">${units}</div>
+    </div>`;
+  ctx.what=`${p.name} · from ${money(p.from)}/mo`;
+}
+function renderUnit(){
+  const p=PLANS[ctx.plan], u=p.units[ctx.unit];
+  document.getElementById("unitCrumb").textContent=u[0];
+  document.getElementById("unitBody").innerHTML=`
+    <div class="media">${placeholder(p.render+" (3D plan render)")}<div class="strip3">${placeholder(p.photo)}${placeholder("/photos/interior-kitchen.jpg")}${placeholder("/photos/interior-bath.jpg")}</div></div>
+    <div class="facts">
+      <div class="num">${u[0]}${u[1]?"<small>The Jade Reserve · 1170 building</small>":"<small>1150 building</small>"}</div>
+      <div class="big price">${money(u[4])}<small>per month</small></div>
+      <dl><dt>Plan</dt><dd>${p.name} · ${p.spec}</dd><dt>Available</dt><dd>${u[3]==="now"?"Now":u[3]}</dd><dt>In the home</dt><dd>Washer &amp; dryer, smart lock and thermostat, quartz counters</dd><dt>Floor</dt><dd>${u[0].slice(5,6)}${u[1]?" · elevator building":""}</dd></dl>
+      <div class="cta"><button class="btn btn-orange" data-go="textme">Text me this one</button><button class="btn btn-navy" data-go="book">Tour this one</button></div>
+    </div>`;
+  ctx.what=`${u[0]} · ${p.name} · ${money(u[4])}/mo`;
+}
+function renderMapKey(){
+  document.getElementById("mapKey").innerHTML=MAPKEY.map(([n,t],i)=>`<button ${i===0?'aria-pressed="true"':""}><i>${n}</i>${t}</button>`).join("");
+}
+function renderGallery(){
+  document.getElementById("gallery").innerHTML=GALLERY.map(g=>g[0]==="tour"?`<button class="tour"><span class="t">${g[1]}</span><span class="s">${g[2]}</span></button>`:placeholder(g[1],g[0])).join("");
+}
+function renderTextWhat(){
+  const map={included:"What's included · the fee breakdown",reserve:"The Jade Reserve · open homes in 1170"};
+  const w=map[ctx.ctxKey]||ctx.what||"What's open at The Jade today";
+  document.getElementById("textWhat").innerHTML=`<b>${w}</b>Floor plan, the homes open today, and a link to pick a tour time.`;
+}
+
+/* ---------- Navigation ---------- */
+function go(id){
+  if(id==="plan") renderPlan();
+  if(id==="unit") renderUnit();
+  if(id==="staff") refreshReturnTimes();
+  if(id==="textme"){ backTo=current; renderTextWhat(); }
+  sections.forEach(s=>s.toggleAttribute("data-on",s.id===id));
+  current=id; markJump(); setRail(id); resetIdle();
+}
+function reset(){ phone=""; updatePhone(); document.getElementById("fname").value=""; ctx.ctxKey=null; go("attract"); }
+
+stage.addEventListener("click",e=>{
+  const t=e.target.closest("[data-go],[data-reset],[data-back],.chip,#keypad button,#sendBtn,#mapKey button");
+  if(!t) return;
+  if(t.hasAttribute("data-reset")) return reset();
+  if(t.hasAttribute("data-back")) return go(backTo);
+  if(t.id==="sendBtn") return send();
+  if(t.classList.contains("chip")){ t.parentElement.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false")); t.setAttribute("aria-pressed","true"); return resetIdle(); }
+  if(t.closest("#keypad")){ if(t.hasAttribute("data-clear")) phone=""; else if(phone.length<10) phone+=t.textContent.trim(); updatePhone(); return resetIdle(); }
+  if(t.closest("#mapKey")){ t.parentElement.querySelectorAll("button").forEach(c=>c.setAttribute("aria-pressed","false")); t.setAttribute("aria-pressed","true"); return resetIdle(); }
+  if(t.dataset.plan) ctx.plan=t.dataset.plan;
+  if(t.dataset.unit!==undefined) ctx.unit=+t.dataset.unit;
+  ctx.ctxKey=t.dataset.ctx||null;
+  go(t.dataset.go);
+});
+function updatePhone(){
+  const d=document.getElementById("phoneDisplay");
+  const p=phone.padEnd(10,"_");
+  d.innerHTML=`(${p.slice(0,3)}) ${p.slice(3,6)}-${p.slice(6,10)}`.replace(/_/g,'<span>_</span>');
+}
+function send(){
+  if(phone.length<10){ document.getElementById("phoneDisplay").style.borderColor="var(--sunny-orange-deep)"; return; }
+  document.getElementById("phoneDisplay").style.borderColor="";
+  document.getElementById("sentTo").textContent=`(${phone.slice(0,3)}) •••-${phone.slice(6)}`;
+  document.getElementById("sentWhat").textContent=(ctx.what||"What's open today")+" · plus a link to pick a tour time. It should land in a few seconds.";
+  go("confirm");
+}
+
+/* ---------- Prototype chrome ---------- */
+const jump=document.getElementById("jump");
+order.forEach(id=>{ const b=document.createElement("button"); b.textContent=NOTES[id][0]; b.onclick=()=>{ if(id==="plan"){ctx.plan=ctx.plan||"cozy"} if(id==="unit"){ctx.unit=ctx.unit??0} go(id); }; b.dataset.id=id; jump.appendChild(b); });
+function markJump(){ jump.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.dataset.id===current)); }
+function setRail(id){ document.getElementById("railTitle").textContent=NOTES[id][0]; document.getElementById("railNotes").innerHTML=NOTES[id][1].map(n=>`<li>${n}</li>`).join(""); }
+/* ---------- Staff away status ---------- */
+let away=null; /* {type, until:Date} */
+const AWAY_TEXT={lunch:"Jamie is at lunch",tour:"Jamie is out on a tour",out:"Jamie stepped out"};
+const AWAY_MIN={lunch:60,tour:30,out:15};
+function fmt(d){return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
+function setStrip(){
+  const s=document.getElementById("strip"), closed=document.getElementById("closed").checked;
+  if(away && new Date()>=away.until) away=null;
+  s.toggleAttribute("data-closed",closed && !away);
+  s.toggleAttribute("data-away",!!away);
+  document.getElementById("stripText").textContent = away
+    ? `${AWAY_TEXT[away.type]} · back at ${fmt(away.until)} · have a seat, or text us`
+    : closed ? "We're closed right now · book a tour below and we'll meet you in this lobby · Mon–Fri 10–6"
+             : "Leasing office: through the door on your right · open until 6 PM";
+  document.getElementById("nextH").textContent=closed?"Pick a time for when we're open?":"Pick a tour time now?";
+}
+function refreshReturnTimes(){ document.querySelectorAll("#staff [data-ret]").forEach(el=>{ el.textContent=fmt(new Date(Date.now()+ +el.dataset.ret*60000)); }); }
+document.getElementById("staff").addEventListener("click",e=>{
+  const b=e.target.closest("[data-away]"); if(!b) return;
+  const t=b.dataset.away;
+  away = t==="clear" ? null : {type:t, until:new Date(Date.now()+AWAY_MIN[t]*60000)};
+  setStrip(); reset();
+});
+(function(){ /* hold the logo 3 s */
+  const h=document.getElementById("staffhold"); let timer=null, held=false;
+  const start=()=>{ held=false; h.setAttribute("data-holding",""); timer=setTimeout(()=>{ held=true; h.removeAttribute("data-holding"); refreshReturnTimes(); go("staff"); },3000); };
+  const stop=()=>{ clearTimeout(timer); h.removeAttribute("data-holding"); };
+  h.addEventListener("pointerdown",start); ["pointerup","pointerleave","pointercancel"].forEach(ev=>h.addEventListener(ev,stop));
+  h.addEventListener("click",e=>{ e.stopPropagation(); if(!held) go("home"); });
+})();
+setInterval(setStrip,15000);
+document.getElementById("closed").addEventListener("change",setStrip);
+document.getElementById("annot").addEventListener("change",e=>stage.toggleAttribute("data-ann",e.target.checked));
+
+/* idle reset */
+let idle=120, idleT;
+function resetIdle(){ idle=120; document.getElementById("idle").textContent=idle; }
+setInterval(()=>{ if(current==="attract"){ return; } idle--; document.getElementById("idle").textContent=idle; if(idle<=0) reset(); },1000);
+
+/* clock */
+function tick(){ const d=new Date(); document.getElementById("clock").textContent=d.toLocaleDateString("en-US",{weekday:"long"})+" · "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
+tick(); setInterval(tick,30000);
+
+/* scale the 1280x800 stage to its container */
+function fit(){ const W=window.innerWidth,H=window.innerHeight; const s=Math.min(W/1280,H/800); stage.style.transform=`scale(${s})`; stage.style.left=((W-1280*s)/2)+"px"; stage.style.top=((H-800*s)/2)+"px"; }
+window.addEventListener("resize",fit);
+
+renderBars(); renderHome(); renderMapKey(); renderGallery(); setRail("attract"); markJump(); fit(); updatePhone();
+</script>
+
+</body></html>
